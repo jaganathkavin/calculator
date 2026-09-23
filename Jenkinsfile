@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'jaganathbkavin/nexus-calculator'
+        IMAGE_NAME = 'jaganathbkvin/nexus-calculator'
         IMAGE_TAG  = "build-${BUILD_NUMBER}"
     }
 
@@ -91,7 +91,7 @@ pipeline {
                     docker run -d `
                         --name nexus-calculator `
                         -p 8085:80 `
-                        jaganathbkavin/nexus-calculator:latest
+                        jaganathbkvin/nexus-calculator:latest
 
                     docker ps
                 '''
