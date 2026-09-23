@@ -5,42 +5,37 @@ pipeline {
     environment {
         IMAGE_NAME = 'jaganathbkavin/nexus-calculator'
         IMAGE_TAG  = "build-${BUILD_NUMBER}"
-        DOCKER_CREDENTIALS = 'dockerhub-credentials'
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                echo 'Downloading source code from GitHub...'
+                echo 'Checking out source code...'
                 checkout scm
             }
         }
 
         stage('Verify Files') {
             steps {
-                echo 'Checking project files...'
-
                 powershell '''
                     if (!(Test-Path "index.html")) {
-                        Write-Error "index.html not found!"
+                        Write-Error "index.html not found"
                         exit 1
                     }
 
                     if (!(Test-Path "Dockerfile")) {
-                        Write-Error "Dockerfile not found!"
+                        Write-Error "Dockerfile not found"
                         exit 1
                     }
 
-                    Write-Host "Project files verified successfully."
+                    Write-Host "Files verified successfully"
                 '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image...'
-
                 powershell """
                     docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
                     docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
@@ -50,25 +45,35 @@ pipeline {
 
         stage('Docker Hub Login') {
             steps {
-                echo 'Logging into Docker Hub...'
 
                 withCredentials([
                     usernamePassword(
-                        credentialsId: "${DOCKER_CREDENTIALS}",
+                        credentialsId: 'dockerhub-credentials',
                         usernameVariable: 'DOCKER_USERNAME',
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
+
                     powershell '''
-                        $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+                        Write-Host "Logging into Docker Hub..."
+
+                        $env:DOCKER_PASSWORD | docker login `
+                            --username $env:DOCKER_USERNAME `
+                            --password-stdin
+
+                        if ($LASTEXITCODE -ne 0) {
+                            Write-Error "Docker login failed"
+                            exit 1
+                        }
+
+                        Write-Host "Docker login successful"
                     '''
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Push Image') {
             steps {
-                echo 'Pushing image to Docker Hub...'
 
                 powershell """
                     docker push ${IMAGE_NAME}:${IMAGE_TAG}
@@ -77,9 +82,8 @@ pipeline {
             }
         }
 
-        stage('Deploy Container') {
+        stage('Deploy') {
             steps {
-                echo 'Deploying calculator container...'
 
                 powershell '''
                     docker rm -f nexus-calculator 2>$null
@@ -87,7 +91,7 @@ pipeline {
                     docker run -d `
                         --name nexus-calculator `
                         -p 8085:80 `
-                        ${env:IMAGE_NAME}:latest
+                        jaganathbkavin/nexus-calculator:latest
 
                     docker ps
                 '''
@@ -99,18 +103,17 @@ pipeline {
 
         success {
             echo '======================================'
-            echo 'NEXUS CALCULATOR DEPLOYED SUCCESSFULLY!'
+            echo 'BUILD SUCCESSFUL'
+            echo 'NEXUS CALCULATOR DEPLOYED'
             echo '======================================'
-            echo 'Open: http://localhost:8085'
+            echo 'URL: http://localhost:8085'
         }
 
         failure {
-            echo 'Pipeline failed. Check the Jenkins console output.'
-        }
-
-        always {
-            echo "Build Number: ${BUILD_NUMBER}"
-            echo "Job Name: ${JOB_NAME}"
+            echo '======================================'
+            echo 'BUILD FAILED'
+            echo 'Check Jenkins Console Output'
+            echo '======================================'
         }
     }
 }
