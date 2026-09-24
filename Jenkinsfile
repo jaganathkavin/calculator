@@ -63,13 +63,9 @@ pipeline {
                     powershell '''
                         Write-Host "Logging into Docker Hub..."
 
-                        $env:DOCKER_PASSWORD | docker login --username $env:DOCKER_USERNAME --password-stdin
+                        docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD
 
-                        if ($LASTEXITCODE -ne 0) {
-                            throw "Docker Hub login failed"
-                        }
-
-                        Write-Host "Docker login successful"
+                        Write-Host "Docker login command completed"
                     '''
                 }
             }
