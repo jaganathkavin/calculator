@@ -1,3 +1,4 @@
+```groovy
 pipeline {
 
     agent any
@@ -38,7 +39,14 @@ pipeline {
             steps {
                 powershell """
                     docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    if (`$LASTEXITCODE -ne 0) {
+                        throw "Docker build failed"
+                    }
+
                     docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+
+                    Write-Host "Docker images created:"
+                    docker images ${IMAGE_NAME}
                 """
             }
         }
@@ -57,13 +65,12 @@ pipeline {
                     powershell '''
                         Write-Host "Logging into Docker Hub..."
 
-                        $env:DOCKER_PASSWORD | docker login `
-                            --username $env:DOCKER_USERNAME `
+                        $DOCKER_PASSWORD | docker login `
+                            --username $DOCKER_USERNAME `
                             --password-stdin
 
                         if ($LASTEXITCODE -ne 0) {
-                            Write-Error "Docker login failed"
-                            exit 1
+                            throw "Docker login failed"
                         }
 
                         Write-Host "Docker login successful"
@@ -76,8 +83,21 @@ pipeline {
             steps {
 
                 powershell """
+                    Write-Host "Pushing ${IMAGE_NAME}:${IMAGE_TAG}..."
                     docker push ${IMAGE_NAME}:${IMAGE_TAG}
+
+                    if (`$LASTEXITCODE -ne 0) {
+                        throw "Build image push failed"
+                    }
+
+                    Write-Host "Pushing ${IMAGE_NAME}:latest..."
                     docker push ${IMAGE_NAME}:latest
+
+                    if (`$LASTEXITCODE -ne 0) {
+                        throw "Latest image push failed"
+                    }
+
+                    Write-Host "Both images pushed successfully."
                 """
             }
         }
@@ -86,14 +106,23 @@ pipeline {
             steps {
 
                 powershell '''
+                    Write-Host "Removing old container..."
+
                     docker rm -f nexus-calculator 2>$null
+
+                    Write-Host "Starting new container..."
 
                     docker run -d `
                         --name nexus-calculator `
                         -p 8085:80 `
                         jaganathbkvin/nexus-calculator:latest
 
-                    docker ps
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "Docker deployment failed"
+                    }
+
+                    Write-Host "Container status:"
+                    docker ps --filter "name=nexus-calculator"
                 '''
             }
         }
@@ -117,3 +146,4 @@ pipeline {
         }
     }
 }
+```
