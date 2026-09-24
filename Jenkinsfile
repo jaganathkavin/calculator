@@ -1,4 +1,3 @@
-
 pipeline {
 
     agent any
@@ -36,7 +35,16 @@ pipeline {
             steps {
                 powershell """
                     docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+
+                    if (`$LASTEXITCODE -ne 0) {
+                        throw "Docker build failed"
+                    }
+
                     docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+
+                    if (`$LASTEXITCODE -ne 0) {
+                        throw "Docker tag failed"
+                    }
 
                     Write-Host "Docker image built successfully"
                 """
@@ -55,7 +63,11 @@ pipeline {
                     powershell '''
                         Write-Host "Logging into Docker Hub..."
 
-                        $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
+                        $env:DOCKER_PASSWORD | docker login --username $env:DOCKER_USERNAME --password-stdin
+
+                        if ($LASTEXITCODE -ne 0) {
+                            throw "Docker Hub login failed"
+                        }
 
                         Write-Host "Docker login successful"
                     '''
@@ -67,7 +79,16 @@ pipeline {
             steps {
                 powershell """
                     docker push ${IMAGE_NAME}:${IMAGE_TAG}
+
+                    if (`$LASTEXITCODE -ne 0) {
+                        throw "Docker image push failed"
+                    }
+
                     docker push ${IMAGE_NAME}:latest
+
+                    if (`$LASTEXITCODE -ne 0) {
+                        throw "Docker latest image push failed"
+                    }
 
                     Write-Host "Images pushed successfully"
                 """
@@ -77,12 +98,20 @@ pipeline {
         stage('Deploy') {
             steps {
                 powershell '''
+                    Write-Host "Stopping old container..."
+
                     docker rm -f nexus-calculator 2>$null
+
+                    Write-Host "Starting new container..."
 
                     docker run -d `
                         --name nexus-calculator `
                         -p 8085:80 `
-                        jaganathbkavin/nexus-calculator:latest
+                        jaganathbkvin/nexus-calculator:latest
+
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "Docker deployment failed"
+                    }
 
                     Write-Host "Application deployed successfully"
 
@@ -95,14 +124,18 @@ pipeline {
     post {
 
         success {
+            echo '======================================'
             echo 'BUILD SUCCESSFUL'
             echo 'NEXUS CALCULATOR DEPLOYED'
             echo 'URL: http://localhost:8085'
+            echo '======================================'
         }
 
         failure {
+            echo '======================================'
             echo 'BUILD FAILED'
+            echo 'Check Jenkins Console Output'
+            echo '======================================'
         }
     }
 }
-
