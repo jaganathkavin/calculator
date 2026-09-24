@@ -1,4 +1,4 @@
-```groovy
+
 pipeline {
 
     agent any
@@ -39,6 +39,7 @@ pipeline {
             steps {
                 powershell """
                     docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+
                     if (`$LASTEXITCODE -ne 0) {
                         throw "Docker build failed"
                     }
@@ -53,7 +54,6 @@ pipeline {
 
         stage('Docker Hub Login') {
             steps {
-
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'dockerhub-credentials',
@@ -61,7 +61,6 @@ pipeline {
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
-
                     powershell '''
                         Write-Host "Logging into Docker Hub..."
 
@@ -81,9 +80,9 @@ pipeline {
 
         stage('Push Image') {
             steps {
-
                 powershell """
                     Write-Host "Pushing ${IMAGE_NAME}:${IMAGE_TAG}..."
+
                     docker push ${IMAGE_NAME}:${IMAGE_TAG}
 
                     if (`$LASTEXITCODE -ne 0) {
@@ -91,6 +90,7 @@ pipeline {
                     }
 
                     Write-Host "Pushing ${IMAGE_NAME}:latest..."
+
                     docker push ${IMAGE_NAME}:latest
 
                     if (`$LASTEXITCODE -ne 0) {
@@ -104,7 +104,6 @@ pipeline {
 
         stage('Deploy') {
             steps {
-
                 powershell '''
                     Write-Host "Removing old container..."
 
@@ -122,6 +121,7 @@ pipeline {
                     }
 
                     Write-Host "Container status:"
+
                     docker ps --filter "name=nexus-calculator"
                 '''
             }
@@ -146,4 +146,4 @@ pipeline {
         }
     }
 }
-```
+
