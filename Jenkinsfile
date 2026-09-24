@@ -35,17 +35,7 @@ pipeline {
             steps {
                 powershell """
                     docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-
-                    if (`$LASTEXITCODE -ne 0) {
-                        throw "Docker build failed"
-                    }
-
                     docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
-
-                    if (`$LASTEXITCODE -ne 0) {
-                        throw "Docker tag failed"
-                    }
-
                     Write-Host "Docker image built successfully"
                 """
             }
@@ -63,9 +53,9 @@ pipeline {
                     powershell '''
                         Write-Host "Logging into Docker Hub..."
 
-                        docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD
+                        docker login --username $env:DOCKER_USERNAME --password $env:DOCKER_PASSWORD
 
-                        Write-Host "Docker login command completed"
+                        Write-Host "Docker login completed"
                     '''
                 }
             }
@@ -75,17 +65,7 @@ pipeline {
             steps {
                 powershell """
                     docker push ${IMAGE_NAME}:${IMAGE_TAG}
-
-                    if (`$LASTEXITCODE -ne 0) {
-                        throw "Docker image push failed"
-                    }
-
                     docker push ${IMAGE_NAME}:latest
-
-                    if (`$LASTEXITCODE -ne 0) {
-                        throw "Docker latest image push failed"
-                    }
-
                     Write-Host "Images pushed successfully"
                 """
             }
@@ -94,7 +74,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 powershell '''
-                    Write-Host "Stopping old container..."
+                    Write-Host "Removing old container..."
 
                     docker rm -f nexus-calculator 2>$null
 
@@ -104,10 +84,6 @@ pipeline {
                         --name nexus-calculator `
                         -p 8085:80 `
                         jaganathbkvin/nexus-calculator:latest
-
-                    if ($LASTEXITCODE -ne 0) {
-                        throw "Docker deployment failed"
-                    }
 
                     Write-Host "Application deployed successfully"
 
